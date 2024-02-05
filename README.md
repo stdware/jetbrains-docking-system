@@ -6,7 +6,3 @@ JetBrains IDE classic docking system reimplemented by Qt.
 
 + Qt
 + C++17
-
-## Dependencies
-
-+ qtmediate
