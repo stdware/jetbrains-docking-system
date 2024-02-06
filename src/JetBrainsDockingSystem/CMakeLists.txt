@@ -55,8 +55,12 @@ if(JBDS_INSTALL)
     )
 
     # Install headers
-    file(GLOB _headers *.h)
-    install(FILES ${_headers} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${JBDS_INSTALL_NAME})
+    install(DIRECTORY ./
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${JBDS_INSTALL_NAME}
+        FILES_MATCHING
+        PATTERN "*.h"
+        PATTERN "*_p.h" EXCLUDE
+    )
 endif()
 
 if(JBDS_INSTALL)

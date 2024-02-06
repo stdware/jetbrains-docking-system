@@ -14,11 +14,20 @@ namespace JBDS {
         Floating,
         Window,
     };
+    Q_ENUM_NS(ViewMode)
 
     enum Side {
         Front,
         Back,
     };
+    Q_ENUM_NS(Side)
+
+    enum Orientation {
+        Horizontal,
+        TopToBottom,
+        BottomToTop,
+    };
+    Q_ENUM_NS(Orientation)
 
 }
 

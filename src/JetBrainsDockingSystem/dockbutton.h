@@ -11,9 +11,8 @@ namespace JBDS {
     public:
         QAbstractButton *create(QWidget *parent) const override;
 
-        Qt::Orientation buttonOrientation(const QAbstractButton *button) const override;
-        void setButtonOrientation(QAbstractButton *button,
-                                  Qt::Orientation orientation) const override;
+        Orientation buttonOrientation(const QAbstractButton *button) const override;
+        void setButtonOrientation(QAbstractButton *button, Orientation orientation) const override;
 
         QMenu *createViewModeMenu(QAbstractButton *button, QWidget *parent) const override;
     };
@@ -30,8 +29,13 @@ namespace JBDS {
         ~DockButton();
 
     public:
-        Qt::Orientation orientation() const;
-        void setOrientation(Qt::Orientation orientation);
+        QSize sizeHint() const override;
+
+        Orientation orientation() const;
+        void setOrientation(Orientation orientation);
+
+    protected:
+        void paintEvent(QPaintEvent *event) override;
 
     protected:
         DockButton(DockButtonPrivate &d, QWidget *parent = nullptr);

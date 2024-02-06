@@ -14,11 +14,13 @@ namespace JBDS {
 
         virtual QAbstractButton *create(QWidget *parent) const = 0;
 
-        virtual Qt::Orientation buttonOrientation(const QAbstractButton *button) const = 0;
+        virtual Orientation buttonOrientation(const QAbstractButton *button) const = 0;
         virtual void setButtonOrientation(QAbstractButton *button,
-                                          Qt::Orientation orientation) const = 0;
+                                          Orientation orientation) const = 0;
 
         virtual QMenu *createViewModeMenu(QAbstractButton *button, QWidget *parent) const = 0;
+
+        inline bool buttonDockVisible(const QAbstractButton *button) const;
     };
 
 }
