@@ -148,27 +148,29 @@ namespace JBDS {
 
     static int buttonAtWidget(DockSideBar *sideBar, Side side, QWidget *w, bool reverse = false) {
         auto buttons = sideBar->buttons(side);
+        auto halfSpacing = sideBar->buttonLayout(side)->spacing() / 2;
+
         int index = 0;
         QPoint center = w->mapToGlobal(w->rect().center());
         for (auto button : buttons) {
             QPoint pos = button->mapToGlobal(QPoint(0, 0));
             if (sideBar->orientation() == Qt::Vertical) {
                 if (reverse) {
-                    if (pos.y() < center.y()) {
+                    if (pos.y() - halfSpacing < center.y()) {
                         break;
                     }
                 } else {
-                    if (pos.y() + button->height() > center.y()) {
+                    if (pos.y() + button->height() + halfSpacing > center.y()) {
                         break;
                     }
                 }
             } else {
                 if (reverse) {
-                    if (pos.x() < center.x()) {
+                    if (pos.x() - halfSpacing < center.x()) {
                         break;
                     }
                 } else {
-                    if (pos.x() + button->width() > center.x()) {
+                    if (pos.x() + button->width() + halfSpacing > center.x()) {
                         break;
                     }
                 }
@@ -188,8 +190,9 @@ namespace JBDS {
         if (auto sideBar = label->targetBar) {
             if (sideBar->orientation() == Qt::Horizontal) {
                 int barX = sideBar->mapToGlobal({}).x();
-                int leftPos = barX + sideBar->layoutGeometry(Front).width();
-                int rightPos = barX + sideBar->width() - sideBar->layoutGeometry(Back).width();
+                int leftPos = barX + sideBar->buttonLayout(Front)->geometry().width();
+                int rightPos =
+                    barX + sideBar->width() - sideBar->buttonLayout(Back)->geometry().width();
 
                 if (label->x() - leftPos < rightPos - (label->x() + label->width())) {
                     int index = buttonAtWidget(sideBar, Front, label);
@@ -200,8 +203,9 @@ namespace JBDS {
                 }
             } else {
                 int barY = sideBar->mapToGlobal({}).y();
-                int topPos = barY + sideBar->layoutGeometry(Front).height();
-                int bottomPos = barY + sideBar->height() - sideBar->layoutGeometry(Back).height();
+                int topPos = barY + sideBar->buttonLayout(Front)->geometry().height();
+                int bottomPos =
+                    barY + sideBar->height() - sideBar->buttonLayout(Back)->geometry().height();
 
                 sideBar->removeButton(data.side, button);
                 if (label->y() - topPos < bottomPos - (label->y() + label->height())) {

@@ -18,6 +18,7 @@ namespace JBDS {
 
     class DockSideBar : public QFrame {
         Q_OBJECT
+        Q_PROPERTY(int buttonSpacing READ buttonSpacing WRITE setButtonSpacing)
     public:
         explicit DockSideBar(DockWidget *dock, Qt::Edge edge, QWidget *parent = nullptr);
         ~DockSideBar();
@@ -36,8 +37,8 @@ namespace JBDS {
             return (m_buttonOrientation == Horizontal) ? Qt::Horizontal : Qt::Vertical;
         }
 
-        inline QRect layoutGeometry(Side side) const {
-            return ((side == Front) ? m_firstLayout : m_secondLayout)->geometry();
+        inline QBoxLayout *buttonLayout(Side side) const {
+            return (side == Front) ? m_firstLayout : m_secondLayout;
         }
 
         void insertButton(Side side, int index, QAbstractButton *button);
@@ -56,6 +57,9 @@ namespace JBDS {
 
         bool highlight() const;
         void setHighlight(bool highlight, int widthHint = 0);
+
+        int buttonSpacing() const;
+        void setButtonSpacing(int spacing);
 
     protected:
         DockWidget *m_dock;

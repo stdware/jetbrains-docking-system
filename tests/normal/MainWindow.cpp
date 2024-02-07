@@ -1,5 +1,6 @@
 #include "MainWindow.h"
 
+#include <QDebug>
 #include <QLabel>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
@@ -21,8 +22,14 @@ MainWindow {
 
 
 
+
 JBDS--DockWidget {
     background-color: transparent;
+}
+
+JBDS--DockWidget>JBDS--DockSideBar {
+    padding: 3px;
+    qproperty-buttonSpacing: 6;
 }
 
 JBDS--DockWidget>JBDS--DockSideBar[highlight=false] {

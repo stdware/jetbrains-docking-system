@@ -151,4 +151,13 @@ namespace JBDS {
         updateGeometry();
     }
 
+    int DockSideBar::buttonSpacing() const {
+        return m_firstLayout->spacing();
+    }
+
+    void DockSideBar::setButtonSpacing(int spacing) {
+        m_firstLayout->setSpacing(spacing);
+        m_secondLayout->setSpacing(spacing);
+    }
+
 }
