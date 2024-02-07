@@ -22,6 +22,8 @@ namespace JBDS {
         explicit DockSideBar(DockWidget *dock, Qt::Edge edge, QWidget *parent = nullptr);
         ~DockSideBar();
 
+        QSize sizeHint() const override;
+
         inline DockWidget *dock() const {
             return m_dock;
         }
@@ -30,7 +32,14 @@ namespace JBDS {
             return m_edge;
         }
 
-        void addButton(Side side, QAbstractButton *button);
+        inline Qt::Orientation orientation() const {
+            return (m_buttonOrientation == Horizontal) ? Qt::Horizontal : Qt::Vertical;
+        }
+
+        inline QRect layoutGeometry(Side side) const {
+            return ((side == Front) ? m_firstLayout : m_secondLayout)->geometry();
+        }
+
         void insertButton(Side side, int index, QAbstractButton *button);
         void removeButton(Side side, QAbstractButton *button);
 
@@ -45,9 +54,10 @@ namespace JBDS {
         void buttonToggled(Side side, QAbstractButton *button);
         void buttonViewModeChanged(Side side, QAbstractButton *button);
 
-    protected:
-        bool eventFilter(QObject *obj, QEvent *event) override;
+        bool highlight() const;
+        void setHighlight(bool highlight, int widthHint = 0);
 
+    protected:
         DockWidget *m_dock;
 
         Qt::Edge m_edge;
@@ -60,8 +70,7 @@ namespace JBDS {
         QList<QAbstractButton *> m_firstCards;
         QList<QAbstractButton *> m_secondCards;
 
-        int m_firstPlaceholder;
-        int m_secondPlaceholder;
+        int m_widthHint;
     };
 
 }

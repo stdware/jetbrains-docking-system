@@ -26,9 +26,10 @@ namespace JBDS {
         void setWidget(QWidget *w);
         QWidget *takeWidget();
 
-        QAbstractButton *addWidget(Qt::Edge edge, Side side, QWidget *w);
+        inline QAbstractButton *addWidget(Qt::Edge edge, Side side, QWidget *w);
+        QAbstractButton *insertWidget(Qt::Edge edge, Side side, int index, QWidget *w);
         void removeWidget(QAbstractButton *button);
-        void moveWidget(QAbstractButton *button, Qt::Edge edge, Side number);
+        void moveWidget(QAbstractButton *button, Qt::Edge edge, Side side, int index = -1);
         int widgetCount(Qt::Edge edge, Side side) const;
         QList<QWidget *> widgets(Qt::Edge edge, Side side) const;
 
@@ -42,6 +43,10 @@ namespace JBDS {
 
         QScopedPointer<DockWidgetPrivate> d_ptr;
     };
+
+    inline QAbstractButton *DockWidget::addWidget(Qt::Edge edge, Side side, QWidget *w) {
+        return insertWidget(edge, side, -1, w);
+    }
 
 }
 

@@ -8,16 +8,6 @@
 
 namespace JBDS {
 
-    class DockDragLabel : public QLabel {
-    public:
-        explicit DockDragLabel(QWidget *parent = nullptr);
-        ~DockDragLabel();
-
-        QAbstractButton *currentCard;
-        QPoint currentPos;
-        DockSideBar *originBar, *targetBar;
-    };
-
     class DockDragController : public QObject {
     public:
         explicit DockDragController(DockWidget *dock, QObject *parent = nullptr);
@@ -30,7 +20,7 @@ namespace JBDS {
         bool eventFilter(QObject *obj, QEvent *event) override;
 
         DockWidget *m_dock;
-        DockDragLabel *m_label;
+        QLabel *m_label;
 
     private:
         void tabDragMove();

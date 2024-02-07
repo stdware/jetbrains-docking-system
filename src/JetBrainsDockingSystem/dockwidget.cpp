@@ -15,7 +15,6 @@
 
 namespace JBDS {
 
-    // NOTE: Remember to enable QGuiApplication::setAttribute(Qt::AA_UseHighDpiPixmaps)
     static QPixmap createPixmap(const QSize &logicalPixelSize, QWindow *window) {
 #ifndef Q_OS_MACOS
         qreal targetDPR = window ? window->devicePixelRatio() : qApp->devicePixelRatio();
@@ -29,17 +28,12 @@ namespace JBDS {
     }
 
     static QPixmap buttonShot(QAbstractButton *button) {
-        QPixmap pixmap = createPixmap(button->size(), button->window()->windowHandle());
+        QPixmap pixmap = QGuiApplication::testAttribute(Qt::AA_UseHighDpiPixmaps)
+                             ? createPixmap(button->size(), button->window()->windowHandle())
+                             : QPixmap(button->size());
         pixmap.fill(Qt::transparent);
         button->render(&pixmap);
         return pixmap;
-    }
-
-    static void removeDockButtonData(const DockButtonData &data) {
-        data.container->deleteLater();
-        delete data.floatingHelper;
-        delete data.widgetEventFilter;
-        delete data.buttonEventFilter;
     }
 
     class ShortcutFilter : public QObject {
@@ -67,8 +61,10 @@ namespace JBDS {
 
     class WidgetEventFilter : public QObject {
     public:
-        WidgetEventFilter(DockWidgetPrivate *d, QWidget *w, QAbstractButton *button)
-            : d(d), widget(w), button(button), closing(false) {
+        WidgetEventFilter(DockWidgetPrivate *d, QWidget *w, QAbstractButton *button,
+                          QObject *parent = nullptr)
+            : QObject(parent), d(d), widget(w), button(button), closing(false) {
+            widget->installEventFilter(this);
         }
 
         DockWidgetPrivate *d;
@@ -143,8 +139,10 @@ namespace JBDS {
 
     class ButtonEventFilter : public QObject {
     public:
-        ButtonEventFilter(DockWidgetPrivate *d, QWidget *w, QAbstractButton *button)
-            : d(d), widget(w), button(button), readyDrag(false) {
+        ButtonEventFilter(DockWidgetPrivate *d, QWidget *w, QAbstractButton *button,
+                          QObject *parent = nullptr)
+            : QObject(parent), d(d), widget(w), button(button), readyDrag(false) {
+            button->installEventFilter(this);
         }
 
         DockWidgetPrivate *d;
@@ -170,7 +168,11 @@ namespace JBDS {
                     qAbs(pos.y() - dragPos.y()) >= dragOffset.height()) {
                     readyDrag = false;
 
-                    d->dragCtl->startDrag(button, dragPos, buttonShot(button));
+                    // Make sure the button receives the event first, otherwise the
+                    // hover state will remain
+                    QTimer::singleShot(0, this, [this]() {
+                        d->dragCtl->startDrag(button, dragPos, buttonShot(button));
+                    });
                 }
             }
         }
@@ -187,17 +189,30 @@ namespace JBDS {
             }
         }
 
+        void contextMenuEvent(QContextMenuEvent *event) {
+        }
+
         bool eventFilter(QObject *obj, QEvent *event) override {
             switch (event->type()) {
                 case QEvent::MouseButtonPress:
-                case QEvent::MouseMove:
-                case QEvent::MouseButtonRelease:
                     mousePressEvent(static_cast<QMouseEvent *>(event));
+                    break;
+
+                case QEvent::MouseMove:
+                    mouseMoveEvent(static_cast<QMouseEvent *>(event));
+                    break;
+
+                case QEvent::MouseButtonRelease:
+                    mouseReleaseEvent(static_cast<QMouseEvent *>(event));
                     break;
 
                 case QEvent::Leave:
                     leaveEvent(event);
                     break;
+
+                case QEvent::ContextMenu:
+                    contextMenuEvent(static_cast<QContextMenuEvent *>(event));
+                    return true;
 
                 default:
                     break;
@@ -205,24 +220,6 @@ namespace JBDS {
             return QObject::eventFilter(obj, event);
         }
     };
-
-    static inline int edge2index(Qt::Edge e) {
-        int res = 0;
-        switch (e) {
-            case Qt::TopEdge:
-                res = 1;
-                break;
-            case Qt::RightEdge:
-                res = 2;
-                break;
-            case Qt::BottomEdge:
-                res = 3;
-                break;
-            default:
-                break;
-        }
-        return res;
-    }
 
     DockWidgetPrivate::DockWidgetPrivate() {
     }
@@ -274,6 +271,7 @@ namespace JBDS {
          */
 
         splitters[0] = new QSplitter(Qt::Horizontal);
+        splitters[0]->setObjectName("dock-splitter");
         splitters[0]->setChildrenCollapsible(false);
         splitters[0]->addWidget(panels[0]);
         splitters[0]->addWidget(centralContainer);
@@ -284,6 +282,7 @@ namespace JBDS {
         splitters[0]->setStretchFactor(2, 0);
 
         splitters[1] = new QSplitter(Qt::Vertical);
+        splitters[1]->setObjectName("dock-splitter");
         splitters[1]->setChildrenCollapsible(false);
         splitters[1]->addWidget(panels[1]);
         splitters[1]->addWidget(splitters[0]);
@@ -338,7 +337,20 @@ namespace JBDS {
         auto data = buttonDataHash.value(button);
 
         // Transfer to sidebar
-        bars[edge2index(data.edge)]->buttonToggled(data.side, button);
+        auto idx = edge2index(data.edge);
+        bars[idx]->buttonToggled(data.side, button);
+
+        // Transfer to panel
+        auto panel = panels[idx];
+        bool visible = button->isChecked();
+        if (data.viewMode == DockPinned) {
+            panel->setContainerVisible(data.side, visible);
+            if (visible) {
+                panel->setCurrentWidget(data.side, data.container);
+            }
+        } else {
+            data.widget->setVisible(visible);
+        }
     }
 
     DockWidget::DockWidget(QWidget *parent)
@@ -391,16 +403,20 @@ namespace JBDS {
         return nullptr;
     }
 
-    QAbstractButton *DockWidget::addWidget(Qt::Edge edge, Side side, QWidget *w) {
+    QAbstractButton *DockWidget::insertWidget(Qt::Edge edge, Side side, int index, QWidget *w) {
         Q_D(DockWidget);
         if (d->widgetIndexes.contains(w))
             return nullptr;
 
+        // Create button
         auto button = d->delegate->create(nullptr);
+        button->setCheckable(true);
+
+        // Create container
         QWidget *container;
         {
             container = new QWidget();
-            container->setObjectName("dock_widget_container");
+            container->setObjectName("dock-widget-container");
             container->setAttribute(Qt::WA_StyledBackground);
 
             auto layout = new QVBoxLayout();
@@ -413,7 +429,7 @@ namespace JBDS {
             container->setLayout(layout);
         }
 
-        auto floatingHelper = new QMFloatingWindowHelper(w, this);
+        auto floatingHelper = new QMFloatingWindowHelper(w, container);
         floatingHelper->setResizeMargins(
             {d->resizeMargin, d->resizeMargin, d->resizeMargin, d->resizeMargin});
 
@@ -424,14 +440,22 @@ namespace JBDS {
             w,
             container,
             floatingHelper,
-            new WidgetEventFilter(d, w, button),
-            new ButtonEventFilter(d, w, button),
+            new WidgetEventFilter(d, w, button, container),
+            new ButtonEventFilter(d, w, button, container),
         };
+
+        // Add button data
         d->buttonDataHash.insert(button, data);
         d->widgetIndexes.insert(w, button);
+
+        // Connect signals
         connect(w, &QObject::destroyed, d, &DockWidgetPrivate::_q_widgetDestroyed);
         connect(button, &QObject::destroyed, d, &DockWidgetPrivate::_q_buttonDestroyed);
         connect(button, &QAbstractButton::toggled, d, &DockWidgetPrivate::_q_buttonToggled);
+
+        // Insert button
+        d->bars[edge2index(edge)]->insertButton(data.side, index, button);
+
         return button;
     }
 
@@ -443,21 +467,45 @@ namespace JBDS {
             return;
 
         auto &data = it.value();
-        if (QObject *o = data.widget; qobject_cast<QWidget *>(o)) {
-            data.widget->setParent(nullptr);
-        }
-        d->bars[edge2index(data.edge)]->removeButton(data.side, button);
-        removeDockButtonData(data);
+        auto w = data.widget;
 
-        disconnect(data.widget, &QObject::destroyed, d, &DockWidgetPrivate::_q_widgetDestroyed);
+        // Make the widget independent
+        if (QObject *o = w; qobject_cast<QWidget *>(o)) {
+            w->setParent(nullptr);
+        }
+
+        // Remove button
+        d->bars[edge2index(data.edge)]->removeButton(data.side, button);
+
+        // Disconnect signals
+        disconnect(w, &QObject::destroyed, d, &DockWidgetPrivate::_q_widgetDestroyed);
         disconnect(button, &QObject::destroyed, d, &DockWidgetPrivate::_q_buttonDestroyed);
         disconnect(button, &QAbstractButton::toggled, d, &DockWidgetPrivate::_q_buttonToggled);
 
+        // Remove button and container
+        button->deleteLater();
+        data.container->deleteLater();
+
+        // Remove button data
+        d->widgetIndexes.remove(w);
         d->buttonDataHash.erase(it);
-        d->widgetIndexes.remove(data.widget);
     }
 
-    void DockWidget::moveWidget(QAbstractButton *button, Qt::Edge edge, Side number) {
+    void DockWidget::moveWidget(QAbstractButton *button, Qt::Edge edge, Side side, int index) {
+        Q_D(DockWidget);
+
+        auto it = d->buttonDataHash.find(button);
+        if (it == d->buttonDataHash.end())
+            return;
+
+        auto &data = it.value();
+        auto orgBar = d->bars[edge2index(data.edge)];
+        auto newBar = d->bars[edge2index(edge)];
+
+        orgBar->removeButton(data.side, button);
+        data.edge = edge;
+        data.side = side;
+        newBar->insertButton(side, index, button);
     }
 
     int DockWidget::widgetCount(Qt::Edge edge, Side side) const {

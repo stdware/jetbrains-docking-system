@@ -7,7 +7,7 @@ project(JetBrainsDockingSystem VERSION 0.0.1.1 LANGUAGES CXX)
 # ----------------------------------
 option(JBDS_BUILD_STATIC "Build static library" off)
 option(JBDS_INSTALL "Install library" on)
-option(JBDS_BUILD_TESTS "Build test cases" ON)
+option(JBDS_BUILD_TESTS "Build test cases" off)
 
 # ----------------------------------
 # CMake Settings

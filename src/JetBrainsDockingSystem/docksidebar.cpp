@@ -1,11 +1,15 @@
 #include "docksidebar_p.h"
 
+#include <QtWidgets/QStyle>
+
 #include "dockwidget_p.h"
 
 namespace JBDS {
 
+    static const char PROPERTY_HIGHLIGHT[] = "highlight";
+
     DockSideBar::DockSideBar(JBDS::DockWidget *dock, Qt::Edge edge, QWidget *parent)
-        : QFrame(parent), m_dock(dock), m_edge(edge) {
+        : QFrame(parent), m_dock(dock), m_edge(edge), m_widthHint(0) {
         switch (edge) {
             case Qt::TopEdge:
             case Qt::BottomEdge: {
@@ -37,16 +41,23 @@ namespace JBDS {
         m_layout->addLayout(m_secondLayout);
 
         setLayout(m_layout);
-
-        m_firstPlaceholder = -1;
-        m_secondPlaceholder = -1;
     }
 
     DockSideBar::~DockSideBar() {
     }
 
-    void DockSideBar::addButton(Side side, QAbstractButton *button) {
-        insertButton(side, ((side == Front) ? m_firstCards : m_secondCards).count(), button);
+    QSize DockSideBar::sizeHint() const {
+        QSize sz = QFrame::sizeHint();
+        if (highlight()) {
+            if (m_buttonOrientation == Horizontal) {
+                if (sz.height() < m_widthHint)
+                    sz.setHeight(m_widthHint);
+            } else {
+                if (sz.width() < m_widthHint)
+                    sz.setWidth(m_widthHint);
+            }
+        }
+        return sz;
     }
 
     void DockSideBar::insertButton(Side side, int index, QAbstractButton *button) {
@@ -63,12 +74,9 @@ namespace JBDS {
             }
         }
 
-        if (index >= cards.size()) {
+        if (index >= cards.size() || index < 0) {
             layout->addWidget(button);
             cards.append(button);
-        } else if (index <= 0) {
-            layout->insertWidget(0, button);
-            cards.prepend(button);
         } else {
             layout->insertWidget(index, button);
             cards.insert(index, button);
@@ -76,6 +84,7 @@ namespace JBDS {
 
         button->show();
 
+        // Transfer to dock
         dock_p->delegate->setButtonOrientation(button, m_buttonOrientation);
         dock_p->barButtonAdded(m_edge, side, button);
     }
@@ -92,6 +101,7 @@ namespace JBDS {
         cards.removeAt(cardIndex);
         layout->removeWidget(button);
 
+        // Transfer to dock
         auto dock_p = DockWidgetPrivate::get(m_dock);
         dock_p->barButtonRemoved(m_edge, side, button);
     }
@@ -122,8 +132,23 @@ namespace JBDS {
         }
     }
 
-    bool DockSideBar::eventFilter(QObject *obj, QEvent *event) {
-        return QObject::eventFilter(obj, event);
+    bool DockSideBar::highlight() const {
+        return property(PROPERTY_HIGHLIGHT).toBool();
+    }
+
+    void DockSideBar::setHighlight(bool highlight, int widthHint) {
+        if (this->highlight() != highlight) {
+            setProperty(PROPERTY_HIGHLIGHT, highlight);
+            style()->polish(this);
+        } else if (highlight) {
+            return;
+        }
+        if (highlight) {
+            m_widthHint = widthHint;
+        } else {
+            m_widthHint = 0;
+        }
+        updateGeometry();
     }
 
 }

@@ -84,6 +84,24 @@ namespace JBDS {
         void _q_buttonToggled(bool checked);
     };
 
+    inline int edge2index(Qt::Edge e) {
+        int res = 0;
+        switch (e) {
+            case Qt::TopEdge:
+                res = 1;
+                break;
+            case Qt::RightEdge:
+                res = 2;
+                break;
+            case Qt::BottomEdge:
+                res = 3;
+                break;
+            default:
+                break;
+        }
+        return res;
+    }
+
 }
 
 #endif // DOCKWIDGET_P_H
