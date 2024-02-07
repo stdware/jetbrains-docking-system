@@ -18,6 +18,11 @@ namespace JBDS {
         DockWidget(DockButtonDelegate *delegate, QWidget *parent = nullptr);
         ~DockWidget();
 
+        enum Attribute {
+            ViewModeContextMenu,
+            AutoFloatDraggingOutside,
+        };
+
     public:
         int resizeMargin() const;
         void setResizeMargin(int resizeMargin);
@@ -39,15 +44,17 @@ namespace JBDS {
 
         int edgeSize(Qt::Edge edge) const;
         void setEdgeSize(Qt::Edge edge, int size);
+        QList<int> orientationSizes(Qt::Orientation orientation) const;
+        void setOrientationSizes(Qt::Orientation orientation, const QList<int> &sizes);
         void toggleMaximize(Qt::Edge edge);
-
-        bool viewModeMenuEnabled() const;
-        void setViewModeMenuEnabled(bool enabled);
 
         QWidget *findButton(const QWidget *w) const;
 
         bool barVisible(Qt::Edge edge);
         void setBarVisible(Qt::Edge edge, bool visible);
+
+        bool dockAttribute(Attribute attr);
+        void setDockAttribute(Attribute attr, bool on = true);
 
     protected:
         DockWidget(DockWidgetPrivate &d, DockButtonDelegate *delegate, QWidget *parent = nullptr);

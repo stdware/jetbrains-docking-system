@@ -15,19 +15,6 @@
 
 namespace JBDS {
 
-    static void adjustWindowGeometry(QWidget *w) {
-        auto screen = w->screen();
-        auto screenGeometry = screen->geometry();
-        if (w->x() < screenGeometry.left() || w->y() < screenGeometry.top()) {
-            w->move(qMax(w->x(), screenGeometry.left()), qMax(w->y(), screenGeometry.top()));
-        }
-        if (w->x() + w->width() > screenGeometry.right() ||
-            w->y() + w->height() > screenGeometry.bottom()) {
-            w->move(qMin(w->x(), screenGeometry.right() - w->width()),
-                    qMin(w->y(), screenGeometry.bottom() - w->height()));
-        }
-    }
-
     static QPixmap createPixmap(const QSize &logicalPixelSize, QWindow *window) {
 #ifndef Q_OS_MACOS
         qreal targetDPR = window ? window->devicePixelRatio() : qApp->devicePixelRatio();
@@ -47,6 +34,19 @@ namespace JBDS {
         pixmap.fill(Qt::transparent);
         button->render(&pixmap);
         return pixmap;
+    }
+
+    static void adjustWindowGeometry(QWidget *w) {
+        auto screen = w->screen();
+        auto screenGeometry = screen->geometry();
+        if (w->x() < screenGeometry.left() || w->y() < screenGeometry.top()) {
+            w->move(qMax(w->x(), screenGeometry.left()), qMax(w->y(), screenGeometry.top()));
+        }
+        if (w->x() + w->width() > screenGeometry.right() ||
+            w->y() + w->height() > screenGeometry.bottom()) {
+            w->move(qMin(w->x(), screenGeometry.right() - w->width()),
+                    qMin(w->y(), screenGeometry.bottom() - w->height()));
+        }
     }
 
     class ShortcutFilter : public QObject {
@@ -203,7 +203,7 @@ namespace JBDS {
         }
 
         void contextMenuEvent(QContextMenuEvent *event) {
-            if (!d->viewModeMenuEnabled) {
+            if (!d->attributes[DockWidget::ViewModeContextMenu]) {
                 return;
             }
 
@@ -366,6 +366,11 @@ namespace JBDS {
         panel->removeWidget(side, data.container);
     }
 
+    void DockWidgetPrivate::moveWidgetToPos(QWidget *w, const QPoint &pos) {
+        w->move(pos);
+        adjustWindowGeometry(w);
+    }
+
     void DockWidgetPrivate::_q_widgetDestroyed() {
         Q_Q(DockWidget);
         q->removeWidget(widgetIndexes.value(static_cast<QWidget *>(sender())));
@@ -468,9 +473,7 @@ namespace JBDS {
             auto layout = new QVBoxLayout();
             layout->setContentsMargins({});
             layout->setSpacing(0);
-
             layout->addWidget(w);
-            w->installEventFilter(this);
 
             container->setLayout(layout);
         }
@@ -516,8 +519,8 @@ namespace JBDS {
         auto w = data.widget;
 
         // Make the widget independent
-        if (QObject *o = w; qobject_cast<QWidget *>(o)) {
-            w->setParent(nullptr);
+        if (auto layout = data.container->layout(); layout->count() > 0) {
+            layout->removeWidget(layout->itemAt(0)->widget());
         }
 
         // Remove button
@@ -627,8 +630,8 @@ namespace JBDS {
                         break;
                 }
 
-                widget->move(button->mapToGlobal({0, 0}) + offset - extraOffset);
-                adjustWindowGeometry(widget);
+                DockWidgetPrivate::moveWidgetToPos(widget, button->mapToGlobal({0, 0}) + offset -
+                                                               extraOffset);
             }
 
             widget->setVisible(button->isChecked());
@@ -656,9 +659,10 @@ namespace JBDS {
                                 }
                                 break;
                             }
-                            default:
+                            default: {
                                 widget->resize(size);
                                 break;
+                            }
                         }
                     });
                 }
@@ -668,7 +672,7 @@ namespace JBDS {
             case Floating: {
                 auto size = widget->size();
                 auto extraOffset = oldViewMode == DockPinned
-                                       ? QPoint(0, 0)
+                                       ? QPoint()
                                        : (widget->mapToGlobal({}) - widget->pos());
                 layout->removeWidget(widget);
                 widget->setParent(container);
@@ -680,7 +684,7 @@ namespace JBDS {
             case Window: {
                 auto size = widget->size();
                 auto extraOffset = oldViewMode == DockPinned
-                                       ? QPoint(0, 0)
+                                       ? QPoint()
                                        : (widget->mapToGlobal({}) - widget->pos());
                 layout->removeWidget(widget);
                 widget->setParent(nullptr);
@@ -766,6 +770,39 @@ namespace JBDS {
         }
     }
 
+    QList<int> DockWidget::orientationSizes(Qt::Orientation orientation) const {
+        Q_D(const DockWidget);
+        switch (orientation) {
+            case Qt::Horizontal: {
+                auto sizes = d->horizontalSplitter->sizes();
+                if (sizes == QList<int>{0, 0, 0}) {
+                    sizes = {0, d->horizontalSplitter->width(), 0};
+                }
+                return sizes;
+            }
+            case Qt::Vertical: {
+                auto sizes = d->verticalSplitter->sizes();
+                if (sizes == QList<int>{0, 0, 0}) {
+                    sizes = {0, d->verticalSplitter->height(), 0};
+                }
+                return sizes;
+            }
+        }
+        return {};
+    }
+
+    void DockWidget::setOrientationSizes(Qt::Orientation orientation, const QList<int> &sizes) {
+        Q_D(DockWidget);
+        switch (orientation) {
+            case Qt::Horizontal:
+                d->horizontalSplitter->setSizes(sizes);
+                break;
+            case Qt::Vertical:
+                d->verticalSplitter->setSizes(sizes);
+                break;
+        }
+    }
+
     void DockWidget::toggleMaximize(Qt::Edge edge) {
         Q_D(DockWidget);
         switch (edge) {
@@ -828,16 +865,6 @@ namespace JBDS {
         }
     }
 
-    bool DockWidget::viewModeMenuEnabled() const {
-        Q_D(const DockWidget);
-        return d->viewModeMenuEnabled;
-    }
-
-    void DockWidget::setViewModeMenuEnabled(bool enabled) {
-        Q_D(DockWidget);
-        d->viewModeMenuEnabled = enabled;
-    }
-
     QWidget *DockWidget::findButton(const QWidget *w) const {
         Q_D(const DockWidget);
         return d->widgetIndexes.value(const_cast<QWidget *>(w));
@@ -851,6 +878,16 @@ namespace JBDS {
     void DockWidget::setBarVisible(Qt::Edge edge, bool visible) {
         Q_D(const DockWidget);
         d->bars[edge2index(edge)]->setVisible(visible);
+    }
+
+    bool DockWidget::dockAttribute(DockWidget::Attribute attr) {
+        Q_D(const DockWidget);
+        return d->attributes[attr];
+    }
+
+    void DockWidget::setDockAttribute(DockWidget::Attribute attr, bool on) {
+        Q_D(DockWidget);
+        d->attributes[attr] = on;
     }
 
     DockWidget::DockWidget(DockWidgetPrivate &d, DockButtonDelegate *delegate, QWidget *parent)

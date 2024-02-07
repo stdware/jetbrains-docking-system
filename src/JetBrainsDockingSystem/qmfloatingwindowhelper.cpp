@@ -264,7 +264,7 @@ bool QMFloatingWindowHelperPrivate::dummyEventFilter(QObject *obj, QEvent *event
 
             if (!pressed) {
                 auto widget = qobject_cast<QWidget *>(obj);
-                if (widget && (widget == w)) {
+                if (widget && (widget == w || widget->property("jbds-titlebar").toBool())) {
                     pressed = true;
                 }
             }

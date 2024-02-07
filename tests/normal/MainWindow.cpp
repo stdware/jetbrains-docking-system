@@ -4,12 +4,12 @@
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     dock = new JBDS::DockWidget();
-    dock->setViewModeMenuEnabled(true);
+    dock->setDockAttribute(JBDS::DockWidget::ViewModeContextMenu, true);
     setCentralWidget(dock);
 
     dock->addWidget(Qt::LeftEdge, JBDS::Front, new QLabel("123"))->setText("123");
     dock->addWidget(Qt::LeftEdge, JBDS::Front, new QLabel("456"))->setText("456");
-    dock->addWidget(Qt::TopEdge, JBDS::Front, new QLabel("789"))->setText("789");
+    dock->addWidget(Qt::RightEdge, JBDS::Front, new QLabel("789"))->setText("789");
 
     resize(1280, 720);
 

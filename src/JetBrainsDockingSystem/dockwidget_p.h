@@ -46,7 +46,6 @@ namespace JBDS {
         QScopedPointer<DockButtonDelegate> delegate;
 
         int resizeMargin = 8;
-        bool viewModeMenuEnabled = false;
 
         // Modules
         DockPanel *panels[4];
@@ -62,6 +61,8 @@ namespace JBDS {
 
         QList<int> orgHSizes;
         QList<int> orgVSizes;
+
+        bool attributes[2] = {false};
 
         void barButtonAdded(Qt::Edge edge, Side side, QAbstractButton *button);
         void barButtonRemoved(Qt::Edge edge, Side side, QAbstractButton *button);
@@ -79,6 +80,8 @@ namespace JBDS {
                    buttonDataHash.value(const_cast<QAbstractButton *>(button)).viewMode ==
                        DockPinned;
         }
+
+        static void moveWidgetToPos(QWidget *w, const QPoint &pos);
 
     private:
         void _q_widgetDestroyed();

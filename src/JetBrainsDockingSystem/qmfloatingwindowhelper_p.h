@@ -13,6 +13,8 @@
 #include <QMargins>
 #include <QObject>
 
+// https://github.com/stdware/qtmediate/blob/main/src/widgets/hooks/qmfloatingwindowhelper.h
+
 class QMFloatingWindowHelperPrivate;
 
 class QMFloatingWindowHelper : public QObject {

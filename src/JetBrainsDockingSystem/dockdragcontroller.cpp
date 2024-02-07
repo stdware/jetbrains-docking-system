@@ -33,7 +33,7 @@ namespace JBDS {
         }
         ~DockDragLabel() = default;
 
-        QAbstractButton *currentCard;
+        QAbstractButton *currentButton;
         QPoint currentPos;
         DockSideBar *originBar, *targetBar;
     };
@@ -62,7 +62,7 @@ namespace JBDS {
         m_label = label;
         label->setWindowFlags(Qt::Popup | Qt::NoDropShadowWindowHint);
 
-        label->currentCard = button;
+        label->currentButton = button;
         label->currentPos = pos;
         label->originBar = orgSidebar;
         label->targetBar = nullptr;
@@ -102,15 +102,15 @@ namespace JBDS {
         auto label = static_cast<DockDragLabel *>(m_label);
         label->move(QCursor::pos() - label->currentPos);
 
-        auto currentCard = label->currentCard;
+        auto button = label->currentButton;
         auto d = DockWidgetPrivate::get(m_dock);
 
         DockSideBar *targetBar = nullptr;
         for (auto bar : d->bars) {
             if (!targetBar && bar->isEnabled() && bar->isVisible()) {
-                int widthHint = d->delegate->buttonOrientation(currentCard) == Horizontal
-                                    ? currentCard->sizeHint().height()
-                                    : currentCard->sizeHint().width();
+                int widthHint = d->delegate->buttonOrientation(button) == Horizontal
+                                    ? button->sizeHint().height()
+                                    : button->sizeHint().width();
                 bool hit;
                 if (bar->count(Front) + bar->count(Back) == 0) {
                     QPoint pos;
@@ -146,19 +146,19 @@ namespace JBDS {
         label->targetBar = targetBar;
     }
 
-    static int cardAtWidget(DockSideBar *sideBar, Side side, QWidget *w, bool reverse = false) {
-        auto cards = sideBar->buttons(side);
+    static int buttonAtWidget(DockSideBar *sideBar, Side side, QWidget *w, bool reverse = false) {
+        auto buttons = sideBar->buttons(side);
         int index = 0;
         QPoint center = w->mapToGlobal(w->rect().center());
-        for (auto card : cards) {
-            QPoint pos = card->mapToGlobal(QPoint(0, 0));
+        for (auto button : buttons) {
+            QPoint pos = button->mapToGlobal(QPoint(0, 0));
             if (sideBar->orientation() == Qt::Vertical) {
                 if (reverse) {
                     if (pos.y() < center.y()) {
                         break;
                     }
                 } else {
-                    if (pos.y() + card->height() > center.y()) {
+                    if (pos.y() + button->height() > center.y()) {
                         break;
                     }
                 }
@@ -168,7 +168,7 @@ namespace JBDS {
                         break;
                     }
                 } else {
-                    if (pos.x() + card->width() > center.x()) {
+                    if (pos.x() + button->width() > center.x()) {
                         break;
                     }
                 }
@@ -180,10 +180,10 @@ namespace JBDS {
 
     void DockDragController::tabDragOver() {
         auto label = static_cast<DockDragLabel *>(m_label);
-        auto card = label->currentCard;
+        auto button = label->currentButton;
 
         auto d = DockWidgetPrivate::get(m_dock);
-        auto &data = d->buttonDataHash.value(card);
+        auto data = d->buttonDataHash.value(button);
 
         if (auto sideBar = label->targetBar) {
             if (sideBar->orientation() == Qt::Horizontal) {
@@ -192,46 +192,48 @@ namespace JBDS {
                 int rightPos = barX + sideBar->width() - sideBar->layoutGeometry(Back).width();
 
                 if (label->x() - leftPos < rightPos - (label->x() + label->width())) {
-                    int index = cardAtWidget(sideBar, Front, label);
-                    m_dock->moveWidget(card, sideBar->edge(), Front, index);
+                    int index = buttonAtWidget(sideBar, Front, label);
+                    m_dock->moveWidget(button, sideBar->edge(), Front, index);
                 } else {
-                    int index = cardAtWidget(sideBar, Back, label, true);
-                    m_dock->moveWidget(card, sideBar->edge(), Back, index);
+                    int index = buttonAtWidget(sideBar, Back, label, true);
+                    m_dock->moveWidget(button, sideBar->edge(), Back, index);
                 }
             } else {
                 int barY = sideBar->mapToGlobal({}).y();
                 int topPos = barY + sideBar->layoutGeometry(Front).height();
                 int bottomPos = barY + sideBar->height() - sideBar->layoutGeometry(Back).height();
 
-                sideBar->removeButton(data.side, card);
+                sideBar->removeButton(data.side, button);
                 if (label->y() - topPos < bottomPos - (label->y() + label->height())) {
-                    int index = cardAtWidget(sideBar, Front, label);
-                    m_dock->moveWidget(card, sideBar->edge(), Front, index);
+                    int index = buttonAtWidget(sideBar, Front, label);
+                    m_dock->moveWidget(button, sideBar->edge(), Front, index);
                 } else {
-                    int index = cardAtWidget(sideBar, Back, label, true);
-                    m_dock->moveWidget(card, sideBar->edge(), Back, index);
+                    int index = buttonAtWidget(sideBar, Back, label, true);
+                    m_dock->moveWidget(button, sideBar->edge(), Back, index);
                 }
             }
-        } else {
-            //            auto pos = QCursor::pos();
-            //            QTimer::singleShot(0, card, [pos, card]() {
-            //                if (card->viewMode() == DockPinned) {
-            //                    card->setViewMode(CDockCard::Float);
-            //                    card->moveWidget(pos);
-            //                } else if (!card->isChecked()) {
-            //                    card->moveWidget(pos);
-            //                }
-            //                card->setChecked(true);
-            //            });
+        } else if (d->attributes[DockWidget::AutoFloatDraggingOutside]) {
+            auto pos = QCursor::pos();
+            auto widget = data.widget;
+            auto viewMode = data.viewMode;
+            QTimer::singleShot(0, button, [pos, button, widget, viewMode, this]() {
+                if (viewMode == DockPinned) {
+                    m_dock->setViewMode(button, Floating);
+                    DockWidgetPrivate::moveWidgetToPos(widget, pos);
+                } else if (!button->isChecked()) {
+                    DockWidgetPrivate::moveWidgetToPos(widget, pos);
+                }
+                button->setChecked(true);
+            });
         }
 
-        if (!card->isEnabled()) {
-            card->removeEventFilter(this);
-            card->setDisabled(false);
-            card->update();
+        if (!button->isEnabled()) {
+            button->removeEventFilter(this);
+            button->setDisabled(false);
+            button->update();
         }
-        if (card->isHidden()) {
-            card->show();
+        if (button->isHidden()) {
+            button->show();
         }
 
         label->removeEventFilter(this);
