@@ -4,6 +4,7 @@
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     dock = new JBDS::DockWidget();
+    dock->setViewModeMenuEnabled(true);
     setCentralWidget(dock);
 
     dock->addWidget(Qt::LeftEdge, JBDS::Front, new QLabel("123"))->setText("123");

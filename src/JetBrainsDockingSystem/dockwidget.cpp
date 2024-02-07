@@ -15,6 +15,19 @@
 
 namespace JBDS {
 
+    static void adjustWindowGeometry(QWidget *w) {
+        auto screen = w->screen();
+        auto screenGeometry = screen->geometry();
+        if (w->x() < screenGeometry.left() || w->y() < screenGeometry.top()) {
+            w->move(qMax(w->x(), screenGeometry.left()), qMax(w->y(), screenGeometry.top()));
+        }
+        if (w->x() + w->width() > screenGeometry.right() ||
+            w->y() + w->height() > screenGeometry.bottom()) {
+            w->move(qMin(w->x(), screenGeometry.right() - w->width()),
+                    qMin(w->y(), screenGeometry.bottom() - w->height()));
+        }
+    }
+
     static QPixmap createPixmap(const QSize &logicalPixelSize, QWindow *window) {
 #ifndef Q_OS_MACOS
         qreal targetDPR = window ? window->devicePixelRatio() : qApp->devicePixelRatio();
@@ -190,6 +203,44 @@ namespace JBDS {
         }
 
         void contextMenuEvent(QContextMenuEvent *event) {
+            if (!d->viewModeMenuEnabled) {
+                return;
+            }
+
+            auto menu = d->delegate->createViewModeMenu(button, button);
+            auto data = d->buttonDataHash.value(button);
+
+            QAction dockPinned(
+                QCoreApplication::translate("JetBrainsDockingSystem", "Dock Pinned"));
+            dockPinned.setCheckable(true);
+            dockPinned.setChecked(data.viewMode == DockPinned);
+
+            QAction floating(QCoreApplication::translate("JetBrainsDockingSystem", "Floating"));
+            floating.setCheckable(true);
+            floating.setChecked(data.viewMode == Floating);
+
+            QAction window(QCoreApplication::translate("JetBrainsDockingSystem", "Window"));
+            window.setCheckable(true);
+            window.setChecked(data.viewMode == Window);
+
+            menu->addAction(&dockPinned);
+            menu->addAction(&floating);
+            menu->addAction(&window);
+
+            menu->deleteLater();
+
+            auto action = menu->exec(QCursor::pos());
+            ViewMode mode;
+            if (action == &dockPinned) {
+                mode = DockPinned;
+            } else if (action == &floating) {
+                mode = Floating;
+            } else if (action == &window) {
+                mode = Window;
+            } else {
+                return;
+            }
+            d->q_ptr->setViewMode(button, mode);
         }
 
         bool eventFilter(QObject *obj, QEvent *event) override {
@@ -270,33 +321,33 @@ namespace JBDS {
          *
          */
 
-        splitters[0] = new QSplitter(Qt::Horizontal);
-        splitters[0]->setObjectName("dock-splitter");
-        splitters[0]->setChildrenCollapsible(false);
-        splitters[0]->addWidget(panels[0]);
-        splitters[0]->addWidget(centralContainer);
-        splitters[0]->addWidget(panels[2]);
+        horizontalSplitter = new QSplitter(Qt::Horizontal);
+        horizontalSplitter->setObjectName("dock-splitter");
+        horizontalSplitter->setChildrenCollapsible(false);
+        horizontalSplitter->addWidget(panels[0]);
+        horizontalSplitter->addWidget(centralContainer);
+        horizontalSplitter->addWidget(panels[2]);
 
-        splitters[0]->setStretchFactor(0, 0);
-        splitters[0]->setStretchFactor(1, 1);
-        splitters[0]->setStretchFactor(2, 0);
+        horizontalSplitter->setStretchFactor(0, 0);
+        horizontalSplitter->setStretchFactor(1, 1);
+        horizontalSplitter->setStretchFactor(2, 0);
 
-        splitters[1] = new QSplitter(Qt::Vertical);
-        splitters[1]->setObjectName("dock-splitter");
-        splitters[1]->setChildrenCollapsible(false);
-        splitters[1]->addWidget(panels[1]);
-        splitters[1]->addWidget(splitters[0]);
-        splitters[1]->addWidget(panels[3]);
+        verticalSplitter = new QSplitter(Qt::Vertical);
+        verticalSplitter->setObjectName("dock-splitter");
+        verticalSplitter->setChildrenCollapsible(false);
+        verticalSplitter->addWidget(panels[1]);
+        verticalSplitter->addWidget(horizontalSplitter);
+        verticalSplitter->addWidget(panels[3]);
 
-        splitters[1]->setStretchFactor(0, 0);
-        splitters[1]->setStretchFactor(1, 1);
-        splitters[1]->setStretchFactor(2, 0);
+        verticalSplitter->setStretchFactor(0, 0);
+        verticalSplitter->setStretchFactor(1, 1);
+        verticalSplitter->setStretchFactor(2, 0);
 
         mainLayout->addWidget(bars[0], 1, 0);
         mainLayout->addWidget(bars[1], 0, 1);
         mainLayout->addWidget(bars[2], 1, 2);
         mainLayout->addWidget(bars[3], 2, 1);
-        mainLayout->addWidget(splitters[1], 1, 1);
+        mainLayout->addWidget(verticalSplitter, 1, 1);
 
         q->setLayout(mainLayout);
 
@@ -313,11 +364,6 @@ namespace JBDS {
         auto panel = panels[edge2index(edge)];
         auto data = buttonDataHash.value(button);
         panel->removeWidget(side, data.container);
-    }
-
-    void DockWidgetPrivate::barButtonViewModeChanged(Qt::Edge edge, Side side,
-                                                     QAbstractButton *button,
-                                                     ViewMode oldViewMode) {
     }
 
     void DockWidgetPrivate::_q_widgetDestroyed() {
@@ -337,11 +383,11 @@ namespace JBDS {
         auto data = buttonDataHash.value(button);
 
         // Transfer to sidebar
-        auto idx = edge2index(data.edge);
-        bars[idx]->buttonToggled(data.side, button);
+        auto edgeIdx = edge2index(data.edge);
+        bars[edgeIdx]->buttonToggled(data.side, button);
 
         // Transfer to panel
-        auto panel = panels[idx];
+        auto panel = panels[edgeIdx];
         bool visible = button->isChecked();
         if (data.viewMode == DockPinned) {
             panel->setContainerVisible(data.side, visible);
@@ -523,6 +569,273 @@ namespace JBDS {
             res.append(d->buttonDataHash.value(button).widget);
         }
         return res;
+    }
+
+    QWidget *DockWidget::widget(const QAbstractButton *button) {
+        Q_D(const DockWidget);
+        return d->buttonDataHash.value(const_cast<QAbstractButton *>(button)).widget;
+    }
+
+    ViewMode DockWidget::viewMode(const QAbstractButton *button) {
+        Q_D(const DockWidget);
+        return d->buttonDataHash.value(const_cast<QAbstractButton *>(button)).viewMode;
+    }
+
+    void DockWidget::setViewMode(QAbstractButton *button, ViewMode viewMode) {
+        Q_D(DockWidget);
+        auto it = d->buttonDataHash.find(button);
+        if (it == d->buttonDataHash.end())
+            return;
+
+        auto &data = it.value();
+        auto oldViewMode = data.viewMode;
+        if (oldViewMode == viewMode) {
+            return;
+        }
+
+        auto widget = data.widget;
+        auto container = data.container;
+        auto edgeIdx = edge2index(data.edge);
+        const auto &oldGeometry =
+            static_cast<WidgetEventFilter *>(data.widgetEventFilter)->oldGeometry;
+        auto floatingHelper = static_cast<QMFloatingWindowHelper *>(data.floatingHelper);
+        auto asWindow = [&](const QSize &size, const QPoint &extraOffset) {
+            // Size
+            if (!size.isEmpty()) {
+                widget->resize(size);
+            } else if (!oldGeometry.isEmpty()) {
+                widget->resize(oldGeometry.size());
+            }
+
+            // Pos
+            if (!oldGeometry.isEmpty()) {
+                widget->move(oldGeometry.topLeft() - extraOffset);
+            } else {
+                QPoint offset;
+                switch (data.edge) {
+                    case Qt::TopEdge:
+                        offset.ry() += button->height();
+                        break;
+                    case Qt::BottomEdge:
+                        offset.ry() -= button->height() + size.height();
+                        break;
+                    case Qt::LeftEdge:
+                        offset.rx() += button->width();
+                        break;
+                    case Qt::RightEdge:
+                        offset.rx() -= button->width() + size.width();
+                        break;
+                }
+
+                widget->move(button->mapToGlobal({0, 0}) + offset - extraOffset);
+                adjustWindowGeometry(widget);
+            }
+
+            widget->setVisible(button->isChecked());
+        };
+
+        auto layout = container->layout();
+        switch (viewMode) {
+            case DockPinned: {
+                floatingHelper->setFloating(false);
+                widget->setWindowFlags(Qt::Widget);
+                layout->addWidget(widget);
+                widget->setVisible(true);
+
+                // Restore sizes
+                if (!oldGeometry.isEmpty()) {
+                    auto sideBar = d->bars[edgeIdx];
+                    auto size = oldGeometry.size();
+                    QTimer::singleShot(0, this, [viewMode, this, widget, sideBar, size]() {
+                        switch (viewMode) {
+                            case DockPinned: {
+                                if (sideBar->orientation() == Qt::Horizontal) {
+                                    setEdgeSize(sideBar->edge(), size.height());
+                                } else {
+                                    setEdgeSize(sideBar->edge(), size.width());
+                                }
+                                break;
+                            }
+                            default:
+                                widget->resize(size);
+                                break;
+                        }
+                    });
+                }
+                break;
+            }
+
+            case Floating: {
+                auto size = widget->size();
+                auto extraOffset = oldViewMode == DockPinned
+                                       ? QPoint(0, 0)
+                                       : (widget->mapToGlobal({}) - widget->pos());
+                layout->removeWidget(widget);
+                widget->setParent(container);
+                floatingHelper->setFloating(true, Qt::Tool);
+                asWindow(size, extraOffset);
+                break;
+            }
+
+            case Window: {
+                auto size = widget->size();
+                auto extraOffset = oldViewMode == DockPinned
+                                       ? QPoint(0, 0)
+                                       : (widget->mapToGlobal({}) - widget->pos());
+                layout->removeWidget(widget);
+                widget->setParent(nullptr);
+                floatingHelper->setFloating(false);
+                widget->setWindowFlags(Qt::Window);
+                asWindow(size, extraOffset);
+                break;
+            }
+        }
+
+        data.viewMode = viewMode;
+
+        // Transfer to bar
+        d->bars[edgeIdx]->buttonViewModeChanged(data.side, button);
+
+        // Update panels
+        if (button->isChecked()) {
+            auto panel = d->panels[edgeIdx];
+            if (oldViewMode == DockPinned) {
+                panel->setContainerVisible(data.side, false);
+            } else if (viewMode == DockPinned) {
+                panel->setContainerVisible(data.side, true);
+                panel->setCurrentWidget(data.side, data.container);
+
+                // We must refresh its layout
+                layout->invalidate();
+            }
+        }
+    }
+
+    int DockWidget::edgeSize(Qt::Edge edge) const {
+        Q_D(const DockWidget);
+        switch (edge) {
+            case Qt::TopEdge:
+            case Qt::BottomEdge: {
+                return d->panels[edge2index(edge)]->height();
+            }
+            case Qt::LeftEdge:
+            case Qt::RightEdge: {
+                return d->panels[edge2index(edge)]->width();
+            }
+        }
+        return 0;
+    }
+
+    void DockWidget::setEdgeSize(Qt::Edge edge, int size) {
+        Q_D(DockWidget);
+
+        switch (edge) {
+            case Qt::TopEdge: {
+                auto sizes = d->verticalSplitter->sizes();
+                auto offset = size - sizes[0];
+                sizes[0] += offset;
+                sizes[1] -= offset;
+                d->verticalSplitter->setSizes(sizes);
+                break;
+            }
+            case Qt::BottomEdge: {
+                auto sizes = d->verticalSplitter->sizes();
+                auto offset = size - sizes[2];
+                d->orgVSizes = sizes;
+                sizes[2] += offset;
+                sizes[1] -= offset;
+                d->verticalSplitter->setSizes(sizes);
+                break;
+            }
+            case Qt::LeftEdge: {
+                auto sizes = d->horizontalSplitter->sizes();
+                auto offset = size - sizes[0];
+                sizes[0] += offset;
+                sizes[1] -= offset;
+                d->horizontalSplitter->setSizes(sizes);
+                break;
+            }
+            case Qt::RightEdge: {
+                auto sizes = d->horizontalSplitter->sizes();
+                auto offset = size - sizes[2];
+                sizes[2] += offset;
+                sizes[1] -= offset;
+                d->horizontalSplitter->setSizes(sizes);
+                break;
+            }
+        }
+    }
+
+    void DockWidget::toggleMaximize(Qt::Edge edge) {
+        Q_D(DockWidget);
+        switch (edge) {
+            case Qt::TopEdge: {
+                auto offset = d->horizontalSplitter->height() -
+                              d->horizontalSplitter->minimumSizeHint().height();
+                if (offset == 0) {
+                    d->verticalSplitter->setSizes(d->orgVSizes);
+                } else {
+                    auto sizes = d->verticalSplitter->sizes();
+                    d->orgVSizes = sizes;
+                    sizes[0] += offset;
+                    sizes[1] -= offset;
+                    d->verticalSplitter->setSizes(sizes);
+                }
+                break;
+            }
+            case Qt::BottomEdge: {
+                auto offset = d->horizontalSplitter->height() -
+                              d->horizontalSplitter->minimumSizeHint().height();
+                if (offset == 0) {
+                    d->verticalSplitter->setSizes(d->orgVSizes);
+                } else {
+                    auto sizes = d->verticalSplitter->sizes();
+                    d->orgVSizes = sizes;
+                    sizes[2] += offset;
+                    sizes[1] -= offset;
+                    d->verticalSplitter->setSizes(sizes);
+                }
+                break;
+            }
+            case Qt::LeftEdge: {
+                auto offset =
+                    d->centralContainer->width() - d->centralContainer->minimumSizeHint().width();
+                if (offset == 0) {
+                    d->horizontalSplitter->setSizes(d->orgHSizes);
+                } else {
+                    auto sizes = d->horizontalSplitter->sizes();
+                    d->orgHSizes = sizes;
+                    sizes[0] += offset;
+                    sizes[1] -= offset;
+                    d->horizontalSplitter->setSizes(sizes);
+                }
+                break;
+            }
+            case Qt::RightEdge: {
+                auto offset =
+                    d->centralContainer->width() - d->centralContainer->minimumSizeHint().width();
+                if (offset == 0) {
+                    d->horizontalSplitter->setSizes(d->orgHSizes);
+                } else {
+                    auto sizes = d->horizontalSplitter->sizes();
+                    d->orgHSizes = sizes;
+                    sizes[2] += offset;
+                    sizes[1] -= offset;
+                    d->horizontalSplitter->setSizes(sizes);
+                }
+                break;
+            }
+        }
+    }
+
+    bool DockWidget::viewModeMenuEnabled() const {
+        Q_D(const DockWidget);
+        return d->viewModeMenuEnabled;
+    }
+
+    void DockWidget::setViewModeMenuEnabled(bool enabled) {
+        Q_D(DockWidget);
+        d->viewModeMenuEnabled = enabled;
     }
 
     QWidget *DockWidget::findButton(const QWidget *w) const {

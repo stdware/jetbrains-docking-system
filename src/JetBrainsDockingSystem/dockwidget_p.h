@@ -23,14 +23,14 @@
 namespace JBDS {
 
     struct DockButtonData {
-        ViewMode viewMode;
-        Qt::Edge edge;
-        Side side;
-        QWidget *widget;
-        QWidget *container;
-        QObject *floatingHelper;
-        QObject *widgetEventFilter;
-        QObject *buttonEventFilter;
+        ViewMode viewMode = DockPinned;
+        Qt::Edge edge = Qt::TopEdge;
+        Side side = Front;
+        QWidget *widget = nullptr;
+        QWidget *container = nullptr;
+        QObject *floatingHelper = nullptr;
+        QObject *widgetEventFilter = nullptr;
+        QObject *buttonEventFilter = nullptr;
     };
 
     class DockWidgetPrivate : public QObject {
@@ -46,11 +46,12 @@ namespace JBDS {
         QScopedPointer<DockButtonDelegate> delegate;
 
         int resizeMargin = 8;
+        bool viewModeMenuEnabled = false;
 
         // Modules
         DockPanel *panels[4];
         DockSideBar *bars[4];
-        QSplitter *splitters[2];
+        QSplitter *horizontalSplitter, *verticalSplitter;
         QStackedWidget *centralContainer;
         QGridLayout *mainLayout;
 
@@ -59,10 +60,11 @@ namespace JBDS {
         QHash<QAbstractButton *, DockButtonData> buttonDataHash;
         QHash<QWidget *, QAbstractButton *> widgetIndexes;
 
+        QList<int> orgHSizes;
+        QList<int> orgVSizes;
+
         void barButtonAdded(Qt::Edge edge, Side side, QAbstractButton *button);
         void barButtonRemoved(Qt::Edge edge, Side side, QAbstractButton *button);
-        void barButtonViewModeChanged(Qt::Edge edge, Side side, QAbstractButton *button,
-                                      ViewMode oldViewMode);
 
         static inline DockWidgetPrivate *get(DockWidget *q) {
             return q->d_func();

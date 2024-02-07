@@ -33,6 +33,17 @@ namespace JBDS {
         int widgetCount(Qt::Edge edge, Side side) const;
         QList<QWidget *> widgets(Qt::Edge edge, Side side) const;
 
+        QWidget *widget(const QAbstractButton *button);
+        ViewMode viewMode(const QAbstractButton *button);
+        void setViewMode(QAbstractButton *button, ViewMode viewMode);
+
+        int edgeSize(Qt::Edge edge) const;
+        void setEdgeSize(Qt::Edge edge, int size);
+        void toggleMaximize(Qt::Edge edge);
+
+        bool viewModeMenuEnabled() const;
+        void setViewModeMenuEnabled(bool enabled);
+
         QWidget *findButton(const QWidget *w) const;
 
         bool barVisible(Qt::Edge edge);

@@ -27,19 +27,6 @@ namespace JBDS {
         return rectHitTest(rect1, rect2);
     }
 
-    static void adjustWindowGeometry(QWidget *w) {
-        auto screen = w->screen();
-        auto screenGeometry = screen->geometry();
-        if (w->x() < screenGeometry.left() || w->y() < screenGeometry.top()) {
-            w->move(qMax(w->x(), screenGeometry.left()), qMax(w->y(), screenGeometry.top()));
-        }
-        if (w->x() + w->width() > screenGeometry.right() ||
-            w->y() + w->height() > screenGeometry.bottom()) {
-            w->move(qMin(w->x(), screenGeometry.right() - w->width()),
-                    qMin(w->y(), screenGeometry.bottom() - w->height()));
-        }
-    }
-
     class DockDragLabel : public QLabel {
     public:
         explicit DockDragLabel(QWidget *parent = nullptr) : QLabel(parent) {
