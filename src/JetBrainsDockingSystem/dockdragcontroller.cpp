@@ -4,6 +4,9 @@
 #include <QtCore/QDebug>
 #include <QtGui/QtEvents>
 #include <QtGui/QScreen>
+#include <QtGui/QPainter>
+#include <QtWidgets/QStyle>
+#include <QtWidgets/QStyleOption>
 
 #include "dockwidget_p.h"
 
@@ -27,12 +30,25 @@ namespace JBDS {
         return rectHitTest(rect1, rect2);
     }
 
-    class DockDragLabel : public QLabel {
+    class DockDragLabel : public QWidget {
     public:
-        explicit DockDragLabel(QWidget *parent = nullptr) : QLabel(parent) {
+        explicit DockDragLabel(const QPixmap &pixmap, QWidget *parent = nullptr)
+            : QWidget(parent), pixmap(pixmap) {
         }
         ~DockDragLabel() = default;
 
+        QSize sizeHint() const override {
+            return pixmap.size() / pixmap.devicePixelRatio();
+        }
+
+        void paintEvent(QPaintEvent *) override {
+            QPainter painter(this);
+            QStyleOption opt;
+            opt.initFrom(this);
+            style()->drawItemPixmap(&painter, rect(), Qt::AlignCenter, pixmap);
+        }
+
+        QPixmap pixmap;
         QAbstractButton *currentButton;
         QPoint currentPos;
         DockSideBar *originBar, *targetBar;
@@ -58,7 +74,7 @@ namespace JBDS {
             button->hide();
         }
 
-        auto label = new DockDragLabel(m_dock);
+        auto label = new DockDragLabel(pixmap, m_dock);
         m_label = label;
         label->setWindowFlags(Qt::Popup | Qt::NoDropShadowWindowHint);
 
@@ -67,7 +83,6 @@ namespace JBDS {
         label->originBar = orgSidebar;
         label->targetBar = nullptr;
 
-        label->setPixmap(pixmap);
         label->adjustSize();
         label->setFocus();
         label->installEventFilter(this);

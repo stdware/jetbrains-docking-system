@@ -20,7 +20,7 @@ namespace JBDS {
         bool eventFilter(QObject *obj, QEvent *event) override;
 
         DockWidget *m_dock;
-        QLabel *m_label;
+        QWidget *m_label;
 
     private:
         void tabDragMove();

@@ -20,7 +20,9 @@ MainWindow {
     background-color: #ffffff;
 }
 
-
+QLabel {
+    padding: 50px;
+}
 
 
 JBDS--DockWidget {
