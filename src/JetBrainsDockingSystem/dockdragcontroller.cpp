@@ -189,7 +189,7 @@ namespace JBDS {
 
         if (auto sideBar = label->targetBar) {
             if (sideBar->orientation() == Qt::Horizontal) {
-                int barX = sideBar->mapToGlobal({}).x();
+                int barX = sideBar->mapToGlobal(QPoint()).x();
                 int leftPos = barX + sideBar->buttonLayout(Front)->geometry().width();
                 int rightPos =
                     barX + sideBar->width() - sideBar->buttonLayout(Back)->geometry().width();
@@ -202,7 +202,7 @@ namespace JBDS {
                     m_dock->moveWidget(button, sideBar->edge(), Back, index);
                 }
             } else {
-                int barY = sideBar->mapToGlobal({}).y();
+                int barY = sideBar->mapToGlobal(QPoint()).y();
                 int topPos = barY + sideBar->buttonLayout(Front)->geometry().height();
                 int bottomPos =
                     barY + sideBar->height() - sideBar->buttonLayout(Back)->geometry().height();

@@ -630,7 +630,7 @@ namespace JBDS {
                         break;
                 }
 
-                DockWidgetPrivate::moveWidgetToPos(widget, button->mapToGlobal({0, 0}) + offset -
+                DockWidgetPrivate::moveWidgetToPos(widget, button->mapToGlobal(QPoint()) + offset -
                                                                extraOffset);
             }
 
@@ -673,7 +673,7 @@ namespace JBDS {
                 auto size = widget->size();
                 auto extraOffset = oldViewMode == DockPinned
                                        ? QPoint()
-                                       : (widget->mapToGlobal({}) - widget->pos());
+                                       : (widget->mapToGlobal(QPoint()) - widget->pos());
                 layout->removeWidget(widget);
                 widget->setParent(container);
                 floatingHelper->setFloating(true, Qt::Tool);
@@ -685,7 +685,7 @@ namespace JBDS {
                 auto size = widget->size();
                 auto extraOffset = oldViewMode == DockPinned
                                        ? QPoint()
-                                       : (widget->mapToGlobal({}) - widget->pos());
+                                       : (widget->mapToGlobal(QPoint()) - widget->pos());
                 layout->removeWidget(widget);
                 widget->setParent(nullptr);
                 floatingHelper->setFloating(false);
