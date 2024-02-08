@@ -7,7 +7,46 @@
 #include <QtGui/QPixmap>
 #include <QtGui/QGuiApplication>
 
-#include <private/qapplication_p.h>
+#if QT_VERSION < QT_VERSION_CHECK(6, 7, 0)
+
+#  include <private/qapplication_p.h>
+
+static inline QWidget *appActiveWindow() {
+    return QApplicationPrivate::active_window;
+}
+
+static inline void setAppActiveWindow(QWidget *w) {
+    QApplicationPrivate::active_window = w;
+}
+
+#else
+
+#  include <private/qguiapplication_p.h>
+
+class QApplicationPrivate : public QGuiApplicationPrivate {
+public:
+    static inline QWidget *activeWindow2() {
+        return active_window;
+    }
+
+    static inline void setActiveWindow2(QWidget *w) {
+        active_window = w;
+    }
+
+private:
+    Q_DECL_IMPORT static QApplicationPrivate *self;
+    Q_DECL_IMPORT static QWidget *active_window;
+};
+
+static inline QWidget *appActiveWindow() {
+    return QApplicationPrivate::activeWindow2();
+}
+
+static inline void setAppActiveWindow(QWidget *w) {
+    QApplicationPrivate::setActiveWindow2(w);
+}
+
+#endif
 
 #include "dockbutton.h"
 
@@ -61,7 +100,7 @@ namespace JBDS {
     protected:
         bool eventFilter(QObject *watched, QEvent *event) override {
             if (event->type() == QEvent::Shortcut) {
-                QApplicationPrivate::active_window = m_org;
+                setAppActiveWindow(m_org);
                 m_handled = true;
             }
             return QObject::eventFilter(watched, event);
@@ -125,8 +164,8 @@ namespace JBDS {
                     e->accept();
 
                     // Hack `active_window` temporarily
-                    auto org = QApplicationPrivate::active_window;
-                    QApplicationPrivate::active_window = button->window();
+                    auto org = appActiveWindow();
+                    setAppActiveWindow(button->window());
 
                     // Make sure to restore `active_window` right away if shortcut matches
                     ShortcutFilter filter(org);
@@ -140,7 +179,7 @@ namespace JBDS {
                     QGuiApplicationPrivate::instance()->shortcutMap.tryShortcut(&keyEvent);
 
                     if (!filter.handled()) {
-                        QApplicationPrivate::active_window = org;
+                        setAppActiveWindow(org);
                     }
                 }
                 default:
