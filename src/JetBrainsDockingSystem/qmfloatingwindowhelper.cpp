@@ -317,8 +317,17 @@ bool QMFloatingWindowHelperPrivate::eventFilter(QObject *obj, QEvent *event) {
                     auto e = static_cast<QMouseEvent *>(event);
                     auto widget = qobject_cast<QWidget *>(obj);
                     if (widget && isDescendantOfWidget(widget, w)) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+                        auto me = QMouseEvent(e->type(), w->mapFromGlobal(e->globalPosition()),
+                                              w->window()->mapFromGlobal(e->globalPosition()),
+                                              e->globalPosition(), e->button(), e->buttons(),
+                                              e->modifiers(), e->source(),
+                                              dynamic_cast<const QPointingDevice *>(e->device()));
+                        me.setTimestamp(e->timestamp());
+#else
                         auto me = *e;
                         me.setLocalPos(w->mapFromGlobal(e->globalPos()));
+#endif
                         if (dummyEventFilter(obj, &me)) {
                             return true;
                         }
