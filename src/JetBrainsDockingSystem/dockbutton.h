@@ -1,3 +1,6 @@
+// Copyright (C) 2023-2024 Stdware Collections (https://www.github.com/stdware)
+// SPDX-License-Identifier: MIT
+
 #ifndef DOCKBUTTON_H
 #define DOCKBUTTON_H
 

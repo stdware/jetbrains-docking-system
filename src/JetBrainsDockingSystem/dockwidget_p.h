@@ -1,3 +1,6 @@
+// Copyright (C) 2023-2024 Stdware Collections (https://www.github.com/stdware)
+// SPDX-License-Identifier: MIT
+
 #ifndef DOCKWIDGET_P_H
 #define DOCKWIDGET_P_H
 

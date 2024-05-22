@@ -1,3 +1,6 @@
+// Copyright (C) 2023-2024 Stdware Collections (https://www.github.com/stdware)
+// SPDX-License-Identifier: MIT
+
 #ifndef JBDSNAMESPACE_H
 #define JBDSNAMESPACE_H
 

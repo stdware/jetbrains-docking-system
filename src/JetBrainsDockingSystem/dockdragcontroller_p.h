@@ -1,5 +1,17 @@
+// Copyright (C) 2023-2024 Stdware Collections (https://www.github.com/stdware)
+// SPDX-License-Identifier: MIT
+
 #ifndef DOCKDRAGCONTROLLER_P_H
 #define DOCKDRAGCONTROLLER_P_H
+
+//
+//  W A R N I N G !!!
+//  -----------------
+//
+// This file is not part of the JetBrainsDockingSystem API. It is used purely as an
+// implementation detail. This header file may change from version to
+// version without notice, or may even be removed.
+//
 
 #include <QtWidgets/QLabel>
 
